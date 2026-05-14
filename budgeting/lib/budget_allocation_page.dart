@@ -15,16 +15,6 @@ class _BudgetAllocationPageState extends State<BudgetAllocationPage> {
   final TextEditingController _limitController = TextEditingController();
 
   bool _isSaving = false;
-  int _selectedCategoryId = 1;
-
-  final Map<String, int> categoryOptions = {
-    "Food": 1,
-    "Travel Expenses": 2,
-    "Rent & Utilities": 3,
-    "Entertainment": 4,
-    "Budget": 5,
-    "Taxes": 6,
-  };
 
   Future<void> _saveBudgetLimit() async {
     final user = supabase.auth.currentUser;
@@ -46,17 +36,22 @@ class _BudgetAllocationPageState extends State<BudgetAllocationPage> {
     });
 
     try {
-      await supabase.from("budget_allocation").upsert(
-        {
-          "user_id": user.id,
-          "category_id": _selectedCategoryId,
-          "monthly_limit": limit,
-        },
-        onConflict: "user_id,category_id",
-      );
+      await _saveBudgetToNewTable(user.id, limit);
 
       _limitController.clear();
       _showMessage("Budget limit saved!");
+    } on PostgrestException catch (error) {
+      if (error.code == 'PGRST205') {
+        try {
+          await _saveBudgetToLegacyTable(user.id, limit);
+          _limitController.clear();
+          _showMessage("Budget limit saved!");
+        } catch (legacyError) {
+          _showMessage("Error saving budget: $legacyError");
+        }
+      } else {
+        _showMessage("Error saving budget: $error");
+      }
     } catch (error) {
       _showMessage("Error saving budget: $error");
     } finally {
@@ -68,10 +63,25 @@ class _BudgetAllocationPageState extends State<BudgetAllocationPage> {
     }
   }
 
+  Future<void> _saveBudgetToNewTable(String userId, double limit) async {
+    await supabase.from("user_budget").upsert({
+      "user_id": userId,
+      "monthly_limit": limit,
+    }, onConflict: "user_id");
+  }
+
+  Future<void> _saveBudgetToLegacyTable(String userId, double limit) async {
+    await supabase.from("budget_allocation").upsert({
+      "user_id": userId,
+      "category_id": 5,
+      "monthly_limit": limit,
+    }, onConflict: "user_id,category_id");
+  }
+
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -104,7 +114,7 @@ class _BudgetAllocationPageState extends State<BudgetAllocationPage> {
                     width: MediaQuery.of(context).size.width * 0.85,
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF78B6B7).withOpacity(0.95),
+                      color: const Color(0xFF78B6B7).withValues(alpha: 0.95),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Column(
@@ -120,29 +130,6 @@ class _BudgetAllocationPageState extends State<BudgetAllocationPage> {
                           ),
                         ),
                         const SizedBox(height: 28),
-
-                        const Text(
-                          "Category",
-                          style: TextStyle(fontSize: 20, color: Colors.white),
-                        ),
-                        const SizedBox(height: 8),
-                        DropdownButtonFormField<int>(
-                          value: _selectedCategoryId,
-                          items: categoryOptions.entries.map((entry) {
-                            return DropdownMenuItem<int>(
-                              value: entry.value,
-                              child: Text(entry.key),
-                            );
-                          }).toList(),
-                          onChanged: (value) {
-                            if (value != null) {
-                              setState(() {
-                                _selectedCategoryId = value;
-                              });
-                            }
-                          },
-                          decoration: _inputDecoration(),
-                        ),
 
                         const SizedBox(height: 22),
 
@@ -179,15 +166,15 @@ class _BudgetAllocationPageState extends State<BudgetAllocationPage> {
                               ),
                               child: _isSaving
                                   ? const CircularProgressIndicator(
-                                color: Colors.black,
-                              )
+                                      color: Colors.black,
+                                    )
                                   : const Text(
-                                "SUBMIT",
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                                      "SUBMIT",
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                             ),
                           ),
                         ),
@@ -203,10 +190,7 @@ class _BudgetAllocationPageState extends State<BudgetAllocationPage> {
     );
   }
 
-  InputDecoration _inputDecoration({
-    String? hintText,
-    String? prefixText,
-  }) {
+  InputDecoration _inputDecoration({String? hintText, String? prefixText}) {
     return InputDecoration(
       filled: true,
       fillColor: Colors.grey.shade300,

@@ -1,7 +1,6 @@
 import "package:flutter/material.dart";
 import "package:supabase_flutter/supabase_flutter.dart";
 
-import "goals_page.dart";
 import "register_page.dart";
 import 'dashboard_page.dart';
 
@@ -32,10 +31,7 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
 
     try {
-      await supabase.auth.signInWithPassword(
-        email: email,
-        password: password,
-      );
+      await supabase.auth.signInWithPassword(email: email, password: password);
 
       if (!mounted) return;
 
@@ -53,9 +49,9 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -173,10 +169,7 @@ Widget _logo() {
       color: Colors.white,
     ),
     padding: const EdgeInsets.all(42),
-    child: Image.asset(
-      "assets/logo.png",
-      fit: BoxFit.contain,
-    ),
+    child: Image.asset("assets/logo.png", fit: BoxFit.contain),
   );
 }
 
@@ -188,11 +181,7 @@ Widget _authCard({required Widget child}) {
       color: Colors.white,
       borderRadius: BorderRadius.circular(28),
       boxShadow: const [
-        BoxShadow(
-          color: Colors.black38,
-          blurRadius: 14,
-          offset: Offset(0, 7),
-        ),
+        BoxShadow(color: Colors.black38, blurRadius: 14, offset: Offset(0, 7)),
       ],
     ),
     child: child,
@@ -200,10 +189,10 @@ Widget _authCard({required Widget child}) {
 }
 
 Widget _textField(
-    TextEditingController controller,
-    String hint, {
-      bool obscure = false,
-    }) {
+  TextEditingController controller,
+  String hint, {
+  bool obscure = false,
+}) {
   return TextField(
     controller: controller,
     obscureText: obscure,

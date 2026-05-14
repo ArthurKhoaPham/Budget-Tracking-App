@@ -304,7 +304,7 @@ class _GoalsPageState extends State<GoalsPage> {
       width: MediaQuery.of(context).size.width * 0.86,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFF78B6B7).withOpacity(0.95),
+        color: const Color(0xFF78B6B7).withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(

@@ -5,10 +5,10 @@ import 'app_drawer.dart';
 class AddActivityScreen extends StatefulWidget {
   final String userId;
 
-  const AddActivityScreen({Key? key, required this.userId}) : super(key: key);
+  const AddActivityScreen({super.key, required this.userId});
 
   @override
-  _AddActivityScreenState createState() => _AddActivityScreenState();
+  State<AddActivityScreen> createState() => _AddActivityScreenState();
 }
 
 class _AddActivityScreenState extends State<AddActivityScreen> {
@@ -46,21 +46,37 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
 
   Future<void> _loadCurrentBalance() async {
     try {
-      final data = await Supabase.instance.client
-          .from('budget_allocation')
-          .select('monthly_limit')
-          .eq('user_id', widget.userId);
+      final supabase = Supabase.instance.client;
 
-      double total = 0.0;
+      final monthlyLimit = await _loadMonthlyLimit(supabase);
 
-      for (final row in data) {
-        total += double.tryParse(row['monthly_limit'].toString()) ?? 0.0;
+      // compute sum of this month's transactions
+      final now = DateTime.now();
+      final startOfMonth = DateTime(now.year, now.month, 1).toIso8601String();
+      final startOfNextMonth = DateTime(
+        now.year,
+        now.month + 1,
+        1,
+      ).toIso8601String();
+
+      final transactions = await supabase
+          .from('transactions')
+          .select('amount, created_at')
+          .eq('user_id', widget.userId)
+          .gte('created_at', startOfMonth)
+          .lt('created_at', startOfNextMonth);
+
+      double spent = 0.0;
+      for (final row in transactions) {
+        spent += double.tryParse(row['amount'].toString()) ?? 0.0;
       }
+
+      final remaining = monthlyLimit - spent;
 
       if (!mounted) return;
 
       setState(() {
-        _currentBalance = total;
+        _currentBalance = remaining;
         _isBalanceLoading = false;
       });
     } catch (error) {
@@ -70,10 +86,40 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
         _isBalanceLoading = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading balance: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error loading balance: $error')));
     }
+  }
+
+  Future<double> _loadMonthlyLimit(SupabaseClient supabase) async {
+    try {
+      final budgetRow = await supabase
+          .from('user_budget')
+          .select('monthly_limit')
+          .eq('user_id', widget.userId)
+          .maybeSingle();
+
+      if (budgetRow != null && budgetRow['monthly_limit'] != null) {
+        return double.tryParse(budgetRow['monthly_limit'].toString()) ?? 0.0;
+      }
+    } on PostgrestException catch (error) {
+      if (error.code != 'PGRST205') {
+        rethrow;
+      }
+    }
+
+    final legacyRows = await supabase
+        .from('budget_allocation')
+        .select('monthly_limit')
+        .eq('user_id', widget.userId);
+
+    double total = 0.0;
+    for (final row in legacyRows) {
+      total += double.tryParse(row['monthly_limit'].toString()) ?? 0.0;
+    }
+
+    return total;
   }
 
   Future<void> _submitActivity() async {
@@ -118,7 +164,10 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
     return Scaffold(
       drawer: const AppDrawer(),
       appBar: AppBar(
-        title: const Text('Add Activity', style: TextStyle(color: Colors.black)),
+        title: const Text(
+          'Add Activity',
+          style: TextStyle(color: Colors.black),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
@@ -129,7 +178,7 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
               backgroundColor: Colors.black,
               child: Icon(Icons.person, color: Colors.white),
             ),
-          )
+          ),
         ],
       ),
       extendBodyBehindAppBar: true,
@@ -177,8 +226,10 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                             _isBalanceLoading
                                 ? 'Loading...'
                                 : '\$${_currentBalance.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: _currentBalance < 0
+                                  ? Colors.red
+                                  : Colors.white,
                               fontSize: 36,
                               fontWeight: FontWeight.bold,
                             ),
@@ -206,8 +257,9 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                           borderSide: BorderSide.none,
                         ),
                       ),
-                      validator: (value) =>
-                      value == null || value.isEmpty ? 'Enter a name' : null,
+                      validator: (value) => value == null || value.isEmpty
+                          ? 'Enter a name'
+                          : null,
                       onSaved: (value) => _activityName = value!,
                     ),
 
@@ -222,8 +274,9 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
-                      keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       decoration: InputDecoration(
                         prefixText: '\$  ',
                         filled: true,
@@ -260,11 +313,13 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
-                      value: _recurrenceType.toLowerCase(),
+                      initialValue: _recurrenceType.toLowerCase(),
                       items: recurrenceOptions.map((String value) {
                         return DropdownMenuItem<String>(
                           value: value,
-                          child: Text(value[0].toUpperCase() + value.substring(1)),
+                          child: Text(
+                            value[0].toUpperCase() + value.substring(1),
+                          ),
                         );
                       }).toList(),
                       onChanged: (newValue) =>
@@ -290,7 +345,7 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<int>(
-                      value: _categoryId,
+                      initialValue: _categoryId,
                       items: categoryOptions.entries.map((entry) {
                         return DropdownMenuItem<int>(
                           value: entry.value,

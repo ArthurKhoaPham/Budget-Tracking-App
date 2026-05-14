@@ -31,7 +31,9 @@ class _DashboardPageState extends State<DashboardPage> {
 
   bool _isLoading = true;
   List<CategorySpending> categorySpendings = [];
-  double totalBalance = 0.0;
+  double budgetLimit = 0.0;
+  double totalSpent = 0.0;
+  double balanceRemaining = 0.0;
 
   // Category ID to name map
   final Map<int, String> categoryIdToName = {
@@ -88,9 +90,15 @@ class _DashboardPageState extends State<DashboardPage> {
             (categoryAmounts[categoryId] ?? 0.0) + amount;
       }
 
-      // Build CategorySpending list for all possible categories
+      final budgetAmount = await _loadMonthlyBudget(user.id);
+
+      // Build CategorySpending list for all spending categories
       List<CategorySpending> spendings = [];
       categoryIdToName.forEach((categoryId, categoryName) {
+        if (categoryName == 'Budget') {
+          return;
+        }
+
         final amount = categoryAmounts[categoryId] ?? 0.0;
         spendings.add(
           CategorySpending(
@@ -112,15 +120,19 @@ class _DashboardPageState extends State<DashboardPage> {
         ),
       );
 
-      // Calculate total balance
-      double total = 0.0;
+      // Calculate budget totals
+      double spent = 0.0;
       for (var spending in spendings) {
-        total += spending.amount;
+        spent += spending.amount;
       }
+
+      final remaining = budgetAmount - spent;
 
       setState(() {
         categorySpendings = spendings;
-        totalBalance = total;
+        budgetLimit = budgetAmount;
+        totalSpent = spent;
+        balanceRemaining = remaining;
         _isLoading = false;
       });
     } catch (error) {
@@ -129,6 +141,36 @@ class _DashboardPageState extends State<DashboardPage> {
         _isLoading = false;
       });
     }
+  }
+
+  Future<double> _loadMonthlyBudget(String userId) async {
+    try {
+      final budgetRow = await supabase
+          .from('user_budget')
+          .select('monthly_limit')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      if (budgetRow != null && budgetRow['monthly_limit'] != null) {
+        return double.tryParse(budgetRow['monthly_limit'].toString()) ?? 0.0;
+      }
+    } on PostgrestException catch (error) {
+      if (error.code != 'PGRST205') {
+        rethrow;
+      }
+    }
+
+    final legacyRows = await supabase
+        .from('budget_allocation')
+        .select('monthly_limit')
+        .eq('user_id', userId);
+
+    double total = 0.0;
+    for (final row in legacyRows) {
+      total += double.tryParse(row['monthly_limit'].toString()) ?? 0.0;
+    }
+
+    return total;
   }
 
   void _showSnackBar(String message) {
@@ -140,6 +182,18 @@ class _DashboardPageState extends State<DashboardPage> {
 
   String _formatMoney(double value) {
     return '\$${value.toStringAsFixed(2)}';
+  }
+
+  String _centerLabel() {
+    return balanceRemaining < 0 ? 'Over Budget' : 'Balance Remaining';
+  }
+
+  Color _centerLabelColor() {
+    return balanceRemaining < 0 ? Colors.red : Colors.black;
+  }
+
+  double _centerValue() {
+    return balanceRemaining < 0 ? balanceRemaining.abs() : balanceRemaining;
   }
 
   void _navigateToAddActivity() {
@@ -274,10 +328,16 @@ class _DashboardPageState extends State<DashboardPage> {
       }
     }
 
+    // Pie chart shows only category balances (no Balance Remaining slice)
+
     // Create color list for pie chart
     List<Color> colorList = [];
     pieData.forEach((name, amount) {
-      colorList.add(categoryColors[name] ?? Colors.grey);
+      if (name == 'Balance Remaining') {
+        colorList.add(const Color(0xFF7ED957));
+      } else {
+        colorList.add(categoryColors[name] ?? Colors.grey);
+      }
     });
 
     if (pieData.isEmpty) {
@@ -319,47 +379,91 @@ class _DashboardPageState extends State<DashboardPage> {
       );
     }
 
-    return Stack(
-      alignment: Alignment.center,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(
-          width: 250,
-          height: 250,
-          child: PieChart(
-            dataMap: pieData,
-            animationDuration: const Duration(milliseconds: 800),
-            chartRadius: MediaQuery.of(context).size.width / 3.2,
-            colorList: colorList,
-            initialAngleInDegree: 0,
-            chartType: ChartType.ring,
-            ringStrokeWidth: 30,
-            legendOptions: const LegendOptions(showLegends: false),
-          ),
-        ),
-        Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                'Total Balance',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.black,
-                  fontWeight: FontWeight.w500,
-                ),
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            SizedBox(
+              width: 250,
+              height: 250,
+              child: PieChart(
+                dataMap: pieData,
+                animationDuration: const Duration(milliseconds: 800),
+                chartRadius: MediaQuery.of(context).size.width / 3.2,
+                colorList: colorList,
+                initialAngleInDegree: 0,
+                chartType: ChartType.ring,
+                ringStrokeWidth: 30,
+                legendOptions: const LegendOptions(showLegends: false),
               ),
-              const SizedBox(height: 8),
-              Text(
-                _formatMoney(totalBalance),
-                style: const TextStyle(
-                  fontSize: 32,
-                  color: Colors.black,
-                  fontWeight: FontWeight.bold,
-                ),
+            ),
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    _centerLabel(),
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: _centerLabelColor(),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _formatMoney(_centerValue()),
+                    style: TextStyle(
+                      fontSize: 32,
+                      color: _centerLabelColor(),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
+        const SizedBox(height: 14),
+        if (budgetLimit > 0)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.25),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: balanceRemaining > 0
+                    ? const Color(0xFF7ED957)
+                    : Colors.red,
+                width: 1.5,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: balanceRemaining > 0
+                        ? const Color(0xFF7ED957)
+                        : Colors.red,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Balance Remaining: ${_formatMoney(balanceRemaining > 0 ? balanceRemaining : 0)}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: balanceRemaining > 0 ? Colors.white : Colors.red,
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
