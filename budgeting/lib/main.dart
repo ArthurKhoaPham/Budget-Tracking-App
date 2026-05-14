@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'add_activity_screen.dart';
 import 'goals_page.dart';
 import "login_page.dart";
+import 'dashboard_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,7 +29,7 @@ class BudgetApp extends StatelessWidget {
         useMaterial3: true,
       ),
       // Placeholder UUID
-      home: const LoginPage(),
+      home: const GoalsPage(),
     );
   }
 }
