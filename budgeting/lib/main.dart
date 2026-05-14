@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'add_activity_screen.dart';
 import 'goals_page.dart';
+import "login_page.dart";
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // PLACEHOLDERS: Replace these with actual project url and anon public key in production
   await Supabase.initialize(
-    url: 'SUPABASE_PROJECT_URL',
-    anonKey: 'SUPABASE_ANON_PUBLIC_KEY',
+    url: 'https://bufxdyzqftlfwckdxipd.supabase.co',
+    anonKey: 'sb_publishable_FkEwhXvbafVcfYKZy4cicw_qoZq3-TD',
   );
 
   runApp(const BudgetApp());
@@ -27,7 +28,7 @@ class BudgetApp extends StatelessWidget {
         useMaterial3: true,
       ),
       // Placeholder UUID
-      home: const GoalsPage(),
+      home: const LoginPage(),
     );
   }
 }
