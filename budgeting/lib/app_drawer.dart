@@ -5,6 +5,7 @@ import 'dashboard_page.dart';
 import 'add_activity_screen.dart';
 import 'goals_page.dart';
 import 'login_page.dart';
+import "budget_allocation_page.dart";
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -92,6 +93,12 @@ class AppDrawer extends StatelessWidget {
               leading: const Icon(Icons.add_circle_outline),
               title: const Text('Add Activity'),
               onTap: () => _goToAddActivity(context),
+            ),
+
+            ListTile(
+              leading: const Icon(Icons.account_balance_wallet),
+              title: const Text("Budget Allocation"),
+              onTap: () => _goTo(context, const BudgetAllocationPage()),
             ),
 
             ListTile(
