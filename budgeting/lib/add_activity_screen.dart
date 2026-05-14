@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'app_drawer.dart';
 
 class AddActivityScreen extends StatefulWidget {
   final String userId; 
@@ -73,6 +74,7 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(
         title: const Text('Add Activity', style: TextStyle(color: Colors.black)),
         backgroundColor: Colors.transparent,

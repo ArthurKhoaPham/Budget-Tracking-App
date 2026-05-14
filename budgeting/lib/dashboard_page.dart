@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pie_chart/pie_chart.dart';
 import 'add_activity_screen.dart';
+import 'app_drawer.dart';
 
 // Data for category spending
 class CategorySpending {
@@ -162,6 +163,7 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFEAF4F2),
+      drawer: const AppDrawer(),
       body: SafeArea(
         child: Column(
           children: [
@@ -206,7 +208,16 @@ class _DashboardPageState extends State<DashboardPage> {
       padding: const EdgeInsets.symmetric(horizontal: 18),
       child: Row(
         children: [
-          const Icon(Icons.menu, size: 36, color: Colors.black),
+          Builder(
+            builder: (context) {
+              return IconButton(
+                icon: const Icon(Icons.menu, size: 36, color: Colors.black),
+                onPressed: () {
+                  Scaffold.of(context).openDrawer();
+                },
+              );
+            },
+          ),
           const SizedBox(width: 15),
           const Text(
             'DASHBOARD',

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'app_drawer.dart';
 
 class GoalsPage extends StatefulWidget {
   const GoalsPage({super.key});
@@ -189,6 +190,7 @@ class _GoalsPageState extends State<GoalsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFEAF4F2),
+      drawer: const AppDrawer(),
       body: SafeArea(
         child: Column(
           children: [
@@ -233,7 +235,16 @@ class _GoalsPageState extends State<GoalsPage> {
       padding: const EdgeInsets.symmetric(horizontal: 18),
       child: Row(
         children: [
-          const Icon(Icons.menu, size: 36, color: Colors.black),
+          Builder(
+            builder: (context) {
+              return IconButton(
+                icon: const Icon(Icons.menu, size: 36, color: Colors.black),
+                onPressed: () {
+                  Scaffold.of(context).openDrawer();
+                },
+              );
+            },
+          ),
           const SizedBox(width: 15),
           const Text(
             'Goals',

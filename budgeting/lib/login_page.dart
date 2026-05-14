@@ -3,6 +3,7 @@ import "package:supabase_flutter/supabase_flutter.dart";
 
 import "goals_page.dart";
 import "register_page.dart";
+import 'dashboard_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -40,7 +41,7 @@ class _LoginPageState extends State<LoginPage> {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const GoalsPage()),
+        MaterialPageRoute(builder: (_) => const DashboardPage()),
       );
     } on AuthException catch (error) {
       _showMessage(error.message);

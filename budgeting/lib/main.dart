@@ -29,7 +29,9 @@ class BudgetApp extends StatelessWidget {
         useMaterial3: true,
       ),
       // Placeholder UUID
-      home: const GoalsPage(),
+      home: Supabase.instance.client.auth.currentSession == null
+          ? const LoginPage()
+          : const DashboardPage(),
     );
   }
 }
